@@ -277,17 +277,29 @@ class PptxConverter(DocumentConverter):
         if not hasattr(paragraph, "level") or paragraph.level is None:
             return paragraph.text, False
             
-        # Check if this is a numbered list or bullet list
-        if hasattr(paragraph._element, "pPr") and paragraph._element.pPr is not None:
-            pPr = paragraph._element.pPr
-            if pPr.numPr is not None:
-                # This indicates a numbered list 
-                indent = " " * (paragraph.level * 2)
-                return f"{indent}1. {paragraph.text}", True # Markdown automatically converts 1. to number list
-            elif pPr.find('.//{http://schemas.openxmlformats.org/drawingml/2006/main}buChar') is not None:
-                # This is a bullet list
-                indent = " " * (paragraph.level * 2)
-                return f"{indent}* {paragraph.text}", True
+        # Check for bullet list first
+        if paragraph.level > 0:
+            # PowerPoint uses different bullet characters for different levels
+            # but in Markdown we'll just use * with appropriate indentation
+            indent = "  " * (paragraph.level - 1)
+            return f"{indent}* {paragraph.text}", True
+        
+        if paragraph.level > 0:
+            indent = "  " * paragraph.level  # Adjust indentation (level 1 = no indent)
+
+            # Try to detect numbered lists - this is more complex
+            try:
+                if hasattr(paragraph._element, "pPr"):
+                    pPr = paragraph._element.pPr
+                    # Look for numbering in the XML structure
+                    num_element = pPr.xpath('.//*[contains(local-name(), "numPr")]')
+                    if num_element:
+                        return f"{indent}1. {paragraph.text}", True
+            except Exception:
+                # If any error occurs during XML parsing, just continue
+                pass
+   
+            return f"{indent}* {paragraph.text}", True
         
         # Default case - not a list or couldn't determine
         return paragraph.text, False
