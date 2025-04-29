@@ -164,12 +164,14 @@ class PptxConverter(DocumentConverter):
                     if shape == title:
                         md_content += "# " + shape.text.lstrip() + "\n"
                     else:
+                        print(f"This is a text shape! '{shape.text.lstrip()}'")
                         # Process text frame with potential lists
                         text_content = []
                         in_list = False
                         current_list_type = None
                         
                         for paragraph in shape.text_frame.paragraphs:
+                            print("This text shape is a paragraph, so I am going to run the list checker!")
                             formatted_text, is_list_item = self._convert_list_to_markdown(paragraph)
                             
                             if is_list_item:
@@ -283,6 +285,7 @@ class PptxConverter(DocumentConverter):
         try:
             if hasattr(paragraph._element, "pPr") and paragraph._element.pPr is not None:
                 pPr = paragraph._element.pPr
+                print('This paragraph has a pPr element')
                 
                 # Check for bullet character
                 bullet_element = pPr.xpath('.//*[contains(local-name(), "buChar")]')
