@@ -164,7 +164,25 @@ class PptxConverter(DocumentConverter):
                     if shape == title:
                         md_content += "# " + shape.text.lstrip() + "\n"
                     else:
-                        md_content += shape.text + "\n"
+                        # Process text frame with potential lists
+                        text_content = []
+                        in_list = False
+                        current_list_type = None
+                        
+                        for paragraph in shape.text_frame.paragraphs:
+                            formatted_text, is_list_item = self._convert_list_to_markdown(paragraph)
+                            
+                            if is_list_item:
+                                in_list = True
+                                text_content.append(formatted_text)
+                            else:
+                                if in_list:
+                                    # Add an extra line break after lists
+                                    text_content.append("")
+                                    in_list = False
+                                text_content.append(paragraph.text)
+                        
+                        md_content += "\n".join(text_content) + "\n"
 
                 # Group Shapes
                 if shape.shape_type == pptx.enum.shapes.MSO_SHAPE_TYPE.GROUP:
@@ -250,3 +268,26 @@ class PptxConverter(DocumentConverter):
         except Exception:
             # Catch any other exceptions that might occur
             return "\n\n[unsupported chart]\n\n"
+        
+    def _convert_list_to_markdown(self, paragraph):
+        """
+        Format a paragraph as a Markdown list item if it's part of a list
+        Returns the formatted text and whether it was a list item
+        """
+        if not hasattr(paragraph, "level") or paragraph.level is None:
+            return paragraph.text, False
+            
+        # Check if this is a numbered list or bullet list
+        if hasattr(paragraph._element, "pPr") and paragraph._element.pPr is not None:
+            pPr = paragraph._element.pPr
+            if pPr.numPr is not None:
+                # This indicates a numbered list 
+                indent = " " * (paragraph.level * 2)
+                return f"{indent}1. {paragraph.text}", True # Markdown automatically converts 1. to number list
+            elif pPr.find('.//{http://schemas.openxmlformats.org/drawingml/2006/main}buChar') is not None:
+                # This is a bullet list
+                indent = " " * (paragraph.level * 2)
+                return f"{indent}* {paragraph.text}", True
+        
+        # Default case - not a list or couldn't determine
+        return paragraph.text, False
