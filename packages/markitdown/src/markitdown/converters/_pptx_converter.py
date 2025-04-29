@@ -64,6 +64,8 @@ class PptxConverter(DocumentConverter):
         stream_info: StreamInfo,
         **kwargs: Any,  # Options to pass to the converter
     ) -> DocumentConverterResult:
+        
+        print("We are in the convert function")
         # Check the dependencies
         if _dependency_exc_info is not None:
             raise MissingDependencyException(
