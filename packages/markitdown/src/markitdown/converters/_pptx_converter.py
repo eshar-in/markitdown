@@ -302,7 +302,8 @@ class PptxConverter(DocumentConverter):
         # If we couldn't detect from XML, check if the text looks like a list item
         if not is_list_item:
             text = paragraph.text.strip()
-            print(f"First character of current line is: '{text[0]}'")
+            if len(text):
+                print(f"First character of current line is: '{text[0]}'")
             # Check for common bullet characters at the start
             # if re.match(r'^[\•\-\*\◦\○\▪\■\►\▻\▼\▽]', text):
             if re.match(r'^[\•\○\▪]', text):
