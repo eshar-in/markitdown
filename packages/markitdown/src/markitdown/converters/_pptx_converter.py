@@ -276,30 +276,57 @@ class PptxConverter(DocumentConverter):
         """
         if not hasattr(paragraph, "level") or paragraph.level is None:
             return paragraph.text, False
+        
+        # First, try to detect if this is a list item regardless of level
+        is_list_item = False
+        is_numbered = False
+        
+        # Check for bullet or numbered list formatting in the XML
+        try:
+            if hasattr(paragraph._element, "pPr") and paragraph._element.pPr is not None:
+                pPr = paragraph._element.pPr
+                
+                # Check for bullet character
+                bullet_element = pPr.xpath('.//*[contains(local-name(), "buChar")]')
+                if bullet_element:
+                    is_list_item = True
+                
+                # Check for numbering
+                num_element = pPr.xpath('.//*[contains(local-name(), "numPr")]')
+                if num_element:
+                    is_list_item = True
+                    is_numbered = True
+        except Exception:
+            # If XML parsing fails, continue with other detection methods
+            pass
+        
+        # If we couldn't detect from XML, check if the text looks like a list item
+        if not is_list_item:
+            text = paragraph.text.strip()
+            # Check for common bullet characters at the start
+            # if re.match(r'^[\•\-\*\◦\○\▪\■\►\▻\▼\▽]', text):
+            if re.match(r'^[\•\○\▪]', text):
+                is_list_item = True
+                # Clean the text
+                text = re.sub(r'^[\•\○\▪]\s*', '', text)
+                paragraph.text = text
+            # Check for numbered format
+            elif re.match(r'^\d+[\.\)]\s', text):
+                is_list_item = True
+                is_numbered = True
+                # Clean the text
+                text = re.sub(r'^\d+[\.\)]\s*', '', text)
+                paragraph.text = text
+        
+        # If it's a list item, format it appropriately
+        if is_list_item:
+            # Calculate indentation (even level 0 can be a list item)
+            indent = "  " * paragraph.level
             
-        # Check for bullet list first
-        if paragraph.level > 0:
-            # PowerPoint uses different bullet characters for different levels
-            # but in Markdown we'll just use * with appropriate indentation
-            indent = "  " * (paragraph.level - 1)
-            return f"{indent}* {paragraph.text}", True
+            if is_numbered:
+                return f"{indent}1. {paragraph.text}", True
+            else:
+                return f"{indent}* {paragraph.text}", True
         
-        if paragraph.level > 0:
-            indent = "  " * paragraph.level  # Adjust indentation (level 1 = no indent)
-
-            # Try to detect numbered lists - this is more complex
-            try:
-                if hasattr(paragraph._element, "pPr"):
-                    pPr = paragraph._element.pPr
-                    # Look for numbering in the XML structure
-                    num_element = pPr.xpath('.//*[contains(local-name(), "numPr")]')
-                    if num_element:
-                        return f"{indent}1. {paragraph.text}", True
-            except Exception:
-                # If any error occurs during XML parsing, just continue
-                pass
-   
-            return f"{indent}* {paragraph.text}", True
-        
-        # Default case - not a list or couldn't determine
+        # Not a list item
         return paragraph.text, False
