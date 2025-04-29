@@ -274,8 +274,6 @@ class PptxConverter(DocumentConverter):
         Format a paragraph as a Markdown list item if it's part of a list
         Returns the formatted text and whether it was a list item
         """
-        if not hasattr(paragraph, "level") or paragraph.level is None:
-            return paragraph.text, False
         
         # First, try to detect if this is a list item regardless of level
         is_list_item = False
@@ -298,11 +296,13 @@ class PptxConverter(DocumentConverter):
                     is_numbered = True
         except Exception:
             # If XML parsing fails, continue with other detection methods
+            print('XML list detection method failed')
             pass
         
         # If we couldn't detect from XML, check if the text looks like a list item
         if not is_list_item:
             text = paragraph.text.strip()
+            print(f"First character of current line is: '{text[0]}'")
             # Check for common bullet characters at the start
             # if re.match(r'^[\•\-\*\◦\○\▪\■\►\▻\▼\▽]', text):
             if re.match(r'^[\•\○\▪]', text):
@@ -320,6 +320,7 @@ class PptxConverter(DocumentConverter):
         
         # If it's a list item, format it appropriately
         if is_list_item:
+            print(f"We found a list item! It is '{paragraph.text}'")
             # Calculate indentation (even level 0 can be a list item)
             indent = "  " * paragraph.level
             
